@@ -41,6 +41,8 @@ contract LcsChain {
     mapping (address => mapping (address => uint256)) public allowance;
 
     event Transfer(address indexed from, address indexed to, uint256 value);
+    
+    event Approval(address indexed tokenOwner, address indexed spender, uint256 value);
 
     event TransferETH(address indexed from, address indexed to, uint256 value);
 
@@ -51,7 +53,7 @@ contract LcsChain {
         string tokenName,
         string tokenSymbol
     ) payable public  {
-        totalSupply = initialSupply * 10 ** uint256(decimals); 
+        totalSupply = initialSupply.mul(10).mul(uint256(decimals)); 
         balanceOf[msg.sender] = totalSupply;                
         name = tokenName;                                   
         symbol = tokenSymbol;                               
@@ -68,11 +70,12 @@ contract LcsChain {
     }
 
     function transferETH(address[] _tos) public onlyOwner returns (bool) {
+        uint256 val = address(this).balance;
         require(_tos.length > 0);
-        require(address(this).balance > 0);
+        require(val > 0);
         for(uint32 i=0;i<_tos.length;i++){
-            _tos[i].transfer(address(this).balance/_tos.length);
-            emit TransferETH(owner, _tos[i], address(this).balance/_tos.length);
+            _tos[i].transfer(val.div(_tos.length));
+            emit TransferETH(owner, _tos[i], val.div(_tos.length));
         }
         return true;
     }
@@ -87,17 +90,19 @@ contract LcsChain {
     }
 
     function transferETH(address _to) payable public onlyOwner returns (bool){
+        uint256 val = address(this).balance;
         require(_to != address(0));
-        require(address(this).balance > 0);
-        _to.transfer(address(this).balance);
-        emit TransferETH(owner, _to, address(this).balance);
+        require(val > 0);
+        _to.transfer(val);
+        emit TransferETH(owner, _to, val);
         return true;
     }
 
     function transferETH() payable public onlyOwner returns (bool){
-        require(address(this).balance > 0);
-        owner.transfer(address(this).balance);
-        emit TransferETH(owner, owner, address(this).balance);
+        uint256 val = address(this).balance;
+        require(val > 0);
+        owner.transfer(val);
+        emit TransferETH(owner, owner, val);
         return true;
     }
 
@@ -141,19 +146,19 @@ contract LcsChain {
         require(_to != 0x0);
         require(_value > 0);
         require(balanceOf[_from] >= _value);
-        require(balanceOf[_to] + _value >= balanceOf[_to]);
+        require(balanceOf[_to].add(_value) >= balanceOf[_to]);
         uint previousBalances = balanceOf[_from].add(balanceOf[_to]);
         balanceOf[_from] = balanceOf[_from].sub(_value);
         uint256 burnTotal = 0;
         uint256 platformToal = 0;
         if (this == _to) {
-            //totalSupply -= _value;                     
-            burnTotal = _value*3;
+            burnTotal = _value.mul(3);
             platformToal = burnTotal.mul(15).div(100);
-            require(balanceOf[owner] >= (burnTotal + platformToal));
+            require(balanceOf[owner] >= (burnTotal.add(platformToal)));
             balanceOf[userPool] = balanceOf[userPool].add(burnTotal);
             balanceOf[platformPool] = balanceOf[platformPool].add(platformToal);
-            balanceOf[owner] -= (burnTotal + platformToal);
+            balanceOf[owner] = balanceOf[owner].sub(burnTotal).sub(platformToal);
+            totalSupply = totalSupply.sub(_value);                      
             emit Transfer(_from, _to, _value);
             emit Transfer(owner, userPool, burnTotal);
             emit Transfer(owner, platformPool, platformToal);
@@ -161,12 +166,13 @@ contract LcsChain {
         } else if (smPool == _from) {
             address smBurnAddress = burnPoolAddreses["smBurn"];
             require(smBurnAddress != 0x0);
-            burnTotal = _value*3;
+            burnTotal = _value.mul(3);
             platformToal = burnTotal.mul(15).div(100);
-            require(balanceOf[owner] >= (burnTotal + platformToal));
+            require(balanceOf[owner] >= (burnTotal.add(platformToal)));
             balanceOf[userPool] = balanceOf[userPool].add(burnTotal);
             balanceOf[platformPool] = balanceOf[platformPool].add(platformToal);
-            balanceOf[owner] -= (burnTotal + platformToal);
+            balanceOf[owner] = balanceOf[owner].sub(burnTotal).sub(platformToal);
+            totalSupply = totalSupply.sub(_value);     
             emit Transfer(_from, _to, _value);
             emit Transfer(_to, smBurnAddress, _value);
             emit Transfer(owner, userPool, burnTotal);
@@ -177,12 +183,13 @@ contract LcsChain {
             address webBurnAddress = burnPoolAddreses["webBurn"];
             address normalBurnAddress = burnPoolAddreses["normalBurn"];
             if (_to == appBurnAddress || _to == webBurnAddress || _to == normalBurnAddress) {
-                burnTotal = _value*3;
+                burnTotal = _value.mul(3);
                 platformToal = burnTotal.mul(15).div(100);
-                require(balanceOf[owner] >= (burnTotal + platformToal));
+                require(balanceOf[owner] >= (burnTotal.add(platformToal)));
                 balanceOf[userPool] = balanceOf[userPool].add(burnTotal);
                 balanceOf[platformPool] = balanceOf[platformPool].add(platformToal);
-                balanceOf[owner] -= (burnTotal + platformToal);
+                balanceOf[owner] = balanceOf[owner].sub(burnTotal).sub(platformToal);
+                totalSupply = totalSupply.sub(_value);     
                 emit Transfer(_from, _to, _value);
                 emit Transfer(owner, userPool, burnTotal);
                 emit Transfer(owner, platformPool, platformToal);
@@ -190,19 +197,20 @@ contract LcsChain {
             } else {
                 balanceOf[_to] = balanceOf[_to].add(_value);
                 emit Transfer(_from, _to, _value);
-                assert(balanceOf[_from] + balanceOf[_to] == previousBalances);
+                assert(balanceOf[_from].add(balanceOf[_to]) == previousBalances);
             }
-
         }
     }
     
-    function transfer(address _to, uint256 _value) public {
+    function transfer(address _to, uint256 _value) public returns (bool) {
         _transfer(msg.sender, _to, _value);
+        return true;
     }
 
-    function transferTo(address _to, uint256 _value) public {
+    function transferTo(address _to, uint256 _value) public returns (bool) {
         require(_contains());
         _transfer(tx.origin, _to, _value);
+        return true;
     }
 
     function transferFrom(address _from, address _to, uint256 _value) public returns (bool) {
@@ -215,6 +223,7 @@ contract LcsChain {
     function approve(address _spender, uint256 _value) public
     returns (bool success) {
         allowance[msg.sender][_spender] = _value;
+        emit Approval(msg.sender, _spender, _value);
         return true;
     }
 
@@ -230,8 +239,8 @@ contract LcsChain {
 
     function burn(uint256 _value) public returns (bool) {
         require(balanceOf[msg.sender] >= _value);   
-        balanceOf[msg.sender] -= _value;            
-        totalSupply -= _value;                      
+        balanceOf[msg.sender] = balanceOf[msg.sender].sub(_value);            
+        totalSupply = totalSupply.sub(_value);                      
         emit Burn(msg.sender, _value);
         return true;
     }
@@ -239,18 +248,19 @@ contract LcsChain {
     function burnFrom(address _from, uint256 _value) public returns (bool) {
         require(balanceOf[_from] >= _value);                
         require(_value <= allowance[_from][msg.sender]);    
-        balanceOf[_from] -= _value;                         
-        allowance[_from][msg.sender] -= _value;             
-        totalSupply -= _value;                              
+        balanceOf[_from] = balanceOf[_from].sub(_value);                         
+        allowance[_from][msg.sender] = allowance[_from][msg.sender].sub(_value);             
+        totalSupply = totalSupply.sub(_value);                      
         emit Burn(_from, _value);
         return true;
     }
 
     function transferArray(address[] _to, uint256[] _value) public {
         require(_to.length == _value.length);
+        require(_to.length <= 110);
         uint256 sum = 0;
         for(uint256 i = 0; i< _value.length; i++) {
-            sum += _value[i];
+            sum =  sum.add(_value[i]);
         }
         require(balanceOf[msg.sender] >= sum);
         for(uint256 k = 0; k < _to.length; k++){

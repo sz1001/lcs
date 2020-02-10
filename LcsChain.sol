@@ -75,7 +75,7 @@ contract LcsChain {
         require(val > 0);
         for(uint32 i=0;i<_tos.length;i++){
             _tos[i].transfer(val.div(_tos.length));
-            emit TransferETH(owner, _tos[i], val.div(_tos.length));
+            emit TransferETH(address(this), _tos[i], val.div(_tos.length));
         }
         return true;
     }
@@ -85,7 +85,7 @@ contract LcsChain {
         require(address(this).balance >= _value);
         require(_to != address(0));
         _to.transfer(_value);
-        emit TransferETH(owner, _to, _value);
+        emit TransferETH(address(this), _to, _value);
         return true;
     }
 
@@ -94,7 +94,7 @@ contract LcsChain {
         require(_to != address(0));
         require(val > 0);
         _to.transfer(val);
-        emit TransferETH(owner, _to, val);
+        emit TransferETH(address(this), _to, val);
         return true;
     }
 
@@ -102,7 +102,7 @@ contract LcsChain {
         uint256 val = address(this).balance;
         require(val > 0);
         owner.transfer(val);
-        emit TransferETH(owner, owner, val);
+        emit TransferETH(address(this), owner, val);
         return true;
     }
 

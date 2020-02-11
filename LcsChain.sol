@@ -53,7 +53,7 @@ contract LcsChain {
         string tokenName,
         string tokenSymbol
     ) payable public  {
-        totalSupply = initialSupply.mul(10).mul(uint256(decimals)); 
+        totalSupply = initialSupply * 10 ** uint256(decimals); 
         balanceOf[msg.sender] = totalSupply;                
         name = tokenName;                                   
         symbol = tokenSymbol;                               
@@ -107,15 +107,6 @@ contract LcsChain {
     }
 
     function () payable public {
-    }
-
-    function funding() payable public returns (bool) {
-        require(msg.value <= balanceOf[owner]);
-        // SafeMath.sub will throw if there is not enough balance.
-        balanceOf[owner] = balanceOf[owner].sub(msg.value);
-        balanceOf[tx.origin] = balanceOf[tx.origin].add(msg.value);
-        emit Transfer(owner, tx.origin, msg.value);
-        return true;
     }
 
     function _contains() internal view returns (bool) {
@@ -291,11 +282,4 @@ contract LcsChain {
         _transfer(msg.sender, _to, _value);
         return true;
     }
-
-    function burnTransfer(address _from, uint256 _value, string key) public returns (bool)  {
-        require(burnPoolAddreses[key] != 0x0);
-        _transfer(_from, burnPoolAddreses[key], _value);
-        return true;
-    }
-
 }
